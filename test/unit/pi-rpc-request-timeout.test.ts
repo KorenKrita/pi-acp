@@ -42,8 +42,30 @@ function writeLine(stdout: PassThrough, msg: unknown): Promise<void> {
   return new Promise<void>(resolve => setImmediate(() => setImmediate(resolve)))
 }
 
-test('PiRpcProcess: getSessionStats defaults to the production timeout', () => {
+test('PiRpcProcess: auxiliary context usage has a one-second timeout', () => {
   assert.equal(SESSION_STATS_TIMEOUT_MS, 1_000)
+})
+
+test('PiRpcProcess: getSessionStats without a timeout accepts a response after one second', async () => {
+  const { child, stdout, written } = makeFakeChild()
+  const proc = makeProcess(child)
+
+  const result = proc.getSessionStats()
+  const sent = JSON.parse(written[0]) as { id: string }
+
+  await new Promise(resolve => setTimeout(resolve, SESSION_STATS_TIMEOUT_MS + 50))
+  assert.equal(pendingSize(proc), 1)
+
+  await writeLine(stdout, {
+    type: 'response',
+    id: sent.id,
+    command: 'get_session_stats',
+    success: true,
+    data: { totalMessages: 42 }
+  })
+
+  assert.deepEqual(await result, { totalMessages: 42 })
+  assert.equal(pendingSize(proc), 0)
 })
 
 test('PiRpcProcess: request timeout rejects, clears pending, and swallows the late response', async () => {

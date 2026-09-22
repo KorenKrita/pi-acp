@@ -11,7 +11,13 @@ import type {
 import { RequestError } from '@agentclientprotocol/sdk'
 import { readFileSync } from 'node:fs'
 import { isAbsolute, resolve as resolvePath } from 'node:path'
-import { PiRpcProcess, PiRpcSpawnError, type PiRpcEvent, type PiSessionStats } from '../pi-rpc/process.js'
+import {
+  PiRpcProcess,
+  PiRpcSpawnError,
+  SESSION_STATS_TIMEOUT_MS,
+  type PiRpcEvent,
+  type PiSessionStats
+} from '../pi-rpc/process.js'
 import { maybeAuthRequiredError } from './auth-required.js'
 import { SessionStore } from './session-store.js'
 import { expandSlashCommand, type FileSlashCommand } from './slash-commands.js'
@@ -440,9 +446,8 @@ export class PiAcpSession {
   async publishContextUsage(): Promise<void> {
     try {
       // Older/stubbed pi processes may not expose the stats RPC at all.
-      // The request itself times out (see `PiRpcProcess.getSessionStats`).
       if (typeof this.proc.getSessionStats === 'function') {
-        const update = toUsageUpdate(await this.proc.getSessionStats())
+        const update = toUsageUpdate(await this.proc.getSessionStats(SESSION_STATS_TIMEOUT_MS))
         if (update) this.emit(update)
       }
     } catch {

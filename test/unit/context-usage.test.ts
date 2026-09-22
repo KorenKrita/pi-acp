@@ -2,6 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { PiAcpAgent } from '../../src/acp/agent.js'
 import { PiAcpSession } from '../../src/acp/session.js'
+import { SESSION_STATS_TIMEOUT_MS } from '../../src/pi-rpc/process.js'
 import { FakeAgentSideConnection, FakePiRpcProcess, asAgentConn } from '../helpers/fakes.js'
 
 class FakeSessions {
@@ -39,6 +40,23 @@ function makeSession(proc: FakePiRpcProcess, conn: FakeAgentSideConnection): PiA
     fileCommands: []
   })
 }
+
+test('PiAcpSession: context usage request specifies the auxiliary timeout', async () => {
+  const conn = new FakeAgentSideConnection()
+  const proc = new FakePiRpcProcess()
+  let requestedTimeout: number | undefined
+  proc.getSessionStats = async (timeoutMs?: number) => {
+    requestedTimeout = timeoutMs
+    return { contextUsage: { tokens: 100, contextWindow: 100_000 } }
+  }
+
+  await makeSession(proc, conn).publishContextUsage()
+
+  assert.equal(requestedTimeout, SESSION_STATS_TIMEOUT_MS)
+  assert.deepEqual(conn.updates, [
+    { sessionId: 's1', update: { sessionUpdate: 'usage_update', used: 100, size: 100_000 } }
+  ])
+})
 
 test('PiAcpAgent: newSession publishes context usage only after the response is returned', async () => {
   const conn = new FakeAgentSideConnection()

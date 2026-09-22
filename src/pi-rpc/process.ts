@@ -68,10 +68,7 @@ type PiExtensionUiResponse =
 
 export type PiRpcEvent = Record<string, unknown>
 
-/**
- * `get_session_stats` is auxiliary (context-window reporting): it must never keep a
- * prompt or a session/new response from completing.
- */
+/** Maximum wait for an auxiliary context-usage update. */
 export const SESSION_STATS_TIMEOUT_MS = 1_000
 
 /**
@@ -310,10 +307,7 @@ export class PiRpcProcess {
     if (!res.success) throw new Error(`pi set_auto_compaction failed: ${res.error ?? JSON.stringify(res.data)}`)
   }
 
-  /**
-   * @param timeoutMs Request timeout. Defaults to the production value; tests may shorten it.
-   */
-  async getSessionStats(timeoutMs: number = SESSION_STATS_TIMEOUT_MS): Promise<PiSessionStats> {
+  async getSessionStats(timeoutMs?: number): Promise<PiSessionStats> {
     const res = await this.request({ type: 'get_session_stats' }, { timeoutMs })
     if (!res.success) throw new Error(`pi get_session_stats failed: ${res.error ?? JSON.stringify(res.data)}`)
     return (res.data ?? {}) as PiSessionStats
